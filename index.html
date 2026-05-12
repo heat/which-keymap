@@ -1,0 +1,1124 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IntelliJ Mnemonic Keymap — Cheat Sheet</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          // Catppuccin Mocha — https://github.com/catppuccin/catppuccin
+          rosewater: "#f5e0dc", flamingo: "#f2cdcd", pink: "#f5c2e7",
+          mauve:     "#cba6f7", red:      "#f38ba8", maroon: "#eba0ac",
+          peach:     "#fab387", yellow:   "#f9e2af", green:  "#a6e3a1",
+          teal:      "#94e2d5", sky:      "#89dceb", sapphire:"#74c7ec",
+          blue:      "#89b4fa", lavender: "#b4befe",
+          text:      "#cdd6f4", subtext1: "#bac2de", subtext0:"#a6adc8",
+          overlay2:  "#9399b2", overlay1: "#7f849c", overlay0:"#6c7086",
+          surface2:  "#585b70", surface1: "#45475a", surface0:"#313244",
+          base:      "#1e1e2e", mantle:   "#181825", crust:   "#11111b",
+          // Semantic aliases used throughout the UI
+          chord:   "#f9e2af",   // yellow — second-chord key
+          prefix:  "#cba6f7",   // mauve  — group prefix / "+block"
+          arrow:   "#6c7086",   // overlay0 — separator/arrow
+          mnem:    "#a6e3a1",   // green  — mnemonic suffix
+          accent:  "#fab387",   // peach  — focus / capture ring
+        },
+        fontFamily: {
+          mono: ['"JetBrains Mono"',"ui-monospace","SFMono-Regular",'"SF Mono"',"Menlo","Consolas","monospace"],
+          sans: ["-apple-system","BlinkMacSystemFont",'"Segoe UI"',"Helvetica","Arial","sans-serif"],
+        },
+        boxShadow: {
+          hero:   "0 24px 60px -20px rgba(250, 179, 135, .35), 0 8px 24px -12px rgba(17, 17, 27, .8)",
+          card:   "0 2px 10px -3px rgba(17, 17, 27, .6)",
+        },
+      },
+    },
+  };
+</script>
+</head>
+<body class="bg-base text-text min-h-screen font-sans antialiased selection:bg-accent/30 selection:text-base">
+
+<!-- Top toolbar (Swagger-style URL bar) ────────────────────────────────── -->
+<div class="border-b border-surface0 bg-mantle/90 backdrop-blur sticky top-0 z-20">
+  <div class="max-w-7xl mx-auto px-3 sm:px-5 py-2 flex flex-wrap items-center gap-2 sm:gap-3">
+    <!-- Logo -->
+    <a href="#" class="flex items-center gap-1.5 font-mono text-subtext0 hover:text-text transition-colors shrink-0">
+      <span class="text-prefix font-bold text-lg leading-none">+</span>
+      <span class="font-semibold text-sm hidden sm:inline">which-keymap</span>
+    </a>
+
+    <!-- URL bar : input + Load button stitched together, Swagger style -->
+    <form id="src-form" class="flex-1 min-w-[200px] flex items-stretch" autocomplete="off">
+      <input id="src-url" type="url" spellcheck="false" autocomplete="off"
+        class="flex-1 min-w-0 px-3 py-1.5 text-sm font-mono rounded-l-md
+               bg-text text-base placeholder-overlay0
+               border border-r-0 border-surface2
+               outline-none focus:border-peach focus:ring-1 focus:ring-peach/40"
+        placeholder="https://…/keymap.xml">
+      <button id="btn-load" type="submit"
+        class="px-4 sm:px-5 text-sm font-semibold rounded-r-md
+               bg-green text-base hover:bg-teal
+               border border-green hover:border-teal transition-colors">
+        Load
+      </button>
+    </form>
+
+    <!-- Secondary actions -->
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button id="btn-paste" type="button" title="Paste XML…"
+        class="px-2.5 py-1.5 text-xs rounded-md bg-surface0 text-subtext1 hover:bg-surface1 hover:text-text border border-surface1">Paste</button>
+      <button id="btn-reset" type="button" title="Restore the built-in default"
+        class="px-2.5 py-1.5 text-xs rounded-md bg-surface0 text-subtext1 hover:bg-surface1 hover:text-text border border-surface1">Reset</button>
+    </div>
+
+    <!-- OS toggle -->
+    <div id="os-toggle" role="tablist" aria-label="Operating system"
+         class="inline-flex bg-surface0 border border-surface1 rounded-md overflow-hidden text-xs shrink-0">
+      <button data-os="win" data-active="true" type="button"
+        class="px-2.5 py-1.5 text-subtext0 hover:text-text data-[active=true]:bg-surface1 data-[active=true]:text-text">Win/Linux</button>
+      <button data-os="mac" data-active="false" type="button"
+        class="px-2.5 py-1.5 text-subtext0 hover:text-text border-l border-surface1 data-[active=true]:bg-surface1 data-[active=true]:text-text">macOS</button>
+    </div>
+  </div>
+
+  <!-- Status line, sits flush under the URL bar -->
+  <div id="loader-status" data-kind=""
+       class="hidden data-[has=true]:block max-w-7xl mx-auto px-4 sm:px-6 pb-2 text-[11px] font-mono
+              text-overlay1 data-[kind=ok]:text-green data-[kind=error]:text-red break-words"></div>
+</div>
+
+<!-- Hero search ─────────────────────────────────────────────────────────── -->
+<section class="px-4 sm:px-6 pt-14 sm:pt-20 pb-10">
+  <div class="max-w-2xl mx-auto">
+    <div class="text-center mb-7 sm:mb-10">
+      <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface0 border border-surface1 mb-4 font-mono text-[11px] text-subtext0">
+        <span class="w-1.5 h-1.5 bg-prefix rounded-full animate-pulse"></span>
+        two-keystroke shortcuts
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold text-text tracking-tight">
+        IntelliJ <span class="text-prefix">Mnemonic</span> Keymap
+      </h1>
+      <p class="mt-2 text-sm text-overlay1">
+        Press a shortcut, type to filter — inspired by
+        <a href="https://github.com/folke/which-key.nvim" target="_blank" rel="noopener"
+           class="text-prefix hover:underline underline-offset-2">folke/which-key.nvim</a>
+      </p>
+    </div>
+
+    <div class="relative">
+      <div class="pointer-events-none absolute inset-0 -m-1 rounded-2xl blur-xl bg-accent/10 transition-opacity opacity-0 data-[on=true]:opacity-100" id="hero-glow"></div>
+      <div class="relative flex items-center gap-2 bg-surface0 border border-surface1 rounded-2xl px-3 sm:px-4 py-2 shadow-hero
+                  focus-within:border-surface2 transition-colors">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5 text-overlay1 flex-none">
+          <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input id="q" type="search" data-capturing="false"
+          class="flex-1 bg-transparent outline-none text-base sm:text-lg py-2 text-text placeholder-overlay0
+                 data-[capturing=true]:font-mono data-[capturing=true]:text-accent data-[capturing=true]:placeholder-accent/60"
+          placeholder="Filter — action, mnemonic, or shortcut (ctrl+k a, ⌘r, rename)…"
+          autocomplete="off" spellcheck="false">
+        <button id="capture-btn" type="button" aria-pressed="false" title="Find by shortcut — press a key combination"
+          class="flex-none inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border bg-crust border-surface1 text-subtext0
+                 hover:text-text hover:border-surface2 transition
+                 aria-pressed:bg-accent aria-pressed:text-base aria-pressed:border-accent aria-pressed:ring-2 aria-pressed:ring-accent/30">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>
+          </svg>
+          <span class="text-[11px] font-mono hidden sm:inline">capture</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-overlay0 font-mono">
+      <span><kbd class="px-1.5 py-0.5 bg-surface0 border border-surface1 rounded text-subtext0">type</kbd> to filter</span>
+      <span class="text-surface1">·</span>
+      <span><kbd class="px-1.5 py-0.5 bg-surface0 border border-surface1 rounded text-subtext0">⌨</kbd> capture mode</span>
+      <span class="text-surface1">·</span>
+      <span><kbd class="px-1.5 py-0.5 bg-surface0 border border-surface1 rounded text-subtext0">Esc</kbd> clear</span>
+    </div>
+  </div>
+</section>
+
+<!-- TOC ──────────────────────────────────────────────────────────────────── -->
+<nav id="toc" class="max-w-6xl mx-auto px-4 sm:px-6 mb-5 flex flex-wrap justify-center gap-1.5"></nav>
+
+<!-- Single-chord (collapsible) ──────────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-4 sm:px-6 mb-6">
+  <details class="bg-surface0 border border-surface1 rounded-xl overflow-hidden">
+    <summary class="cursor-pointer list-none [&::-webkit-details-marker]:hidden
+                    px-4 py-3 flex items-center gap-2 text-xs font-mono select-none
+                    text-subtext0 hover:bg-surface0/50">
+      <span class="text-prefix">▸</span>
+      <span>Single-chord shortcuts</span>
+      <span class="text-overlay0">— editor · macOS · sequential</span>
+    </summary>
+    <div class="border-t border-surface1 p-4 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
+      <div>
+        <h3 class="text-[11px] text-overlay1 uppercase tracking-wider mb-1.5">Editor</h3>
+        <div id="std-editor" class="flex flex-col gap-0.5"></div>
+      </div>
+      <div>
+        <h3 class="text-[11px] text-overlay1 uppercase tracking-wider mb-1.5">macOS app</h3>
+        <div id="std-mac" class="flex flex-col gap-0.5"></div>
+      </div>
+      <div>
+        <h3 class="text-[11px] text-overlay1 uppercase tracking-wider mb-1.5">Sequential</h3>
+        <div id="std-seq" class="flex flex-col gap-0.5"></div>
+      </div>
+    </div>
+  </details>
+</section>
+
+<!-- Double-chord groups ─────────────────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
+  <div id="groups" class="grid grid-cols-1 xl:grid-cols-2 gap-3"></div>
+</section>
+
+<footer class="text-center text-[11px] text-overlay0 pb-8 px-4">
+  Data:
+  <a class="hover:text-subtext0 underline-offset-2 hover:underline" href="https://github.com/dmimat/intellij-mnemonic-keymap" target="_blank" rel="noopener">dmimat/intellij-mnemonic-keymap</a>
+  · UI inspired by
+  <a class="hover:text-subtext0 underline-offset-2 hover:underline" href="https://github.com/folke/which-key.nvim" target="_blank" rel="noopener">folke/which-key.nvim</a>
+</footer>
+
+<script>
+(() => {
+  // ── Tailwind class presets for dynamic elements ───────────────────────────
+  const CLS = {
+    // group card
+    groupCard:  "bg-surface0 border border-surface1 rounded-xl p-3 shadow-card",
+    groupHead:  "flex items-baseline gap-2 font-mono text-xs mb-2 pb-2 border-b border-surface1",
+    groupPlus:  "text-prefix font-semibold",
+    groupName:  "text-text",
+    groupTag:   "ml-auto text-overlay0 text-[10px]",
+
+    // table layout (rendered as div grid)
+    rowList:    "flex flex-col",
+    row:        "grid grid-cols-[auto_auto_1fr_auto] items-baseline gap-2 px-1 py-0.5 rounded font-mono text-[12.5px] hover:bg-surface1/40",
+    rowKey:     "min-w-[1.5rem] text-right",
+    rowArrow:   "text-arrow",
+    rowAction:  "text-subtext1 font-sans",
+    rowMnem:    "text-mnem/70 italic text-[10.5px] ml-1.5 font-sans",
+    rowNote:    "text-overlay0 text-[11px] ml-1 font-sans",
+    rowAlts:    "justify-self-end text-right whitespace-nowrap text-[11px] pl-2",
+
+    // key rendering
+    kbd:        "inline-block font-mono text-[11px] leading-none px-1.5 py-1 bg-crust border border-surface1 rounded text-subtext1 text-center min-w-[18px]",
+    kbdChord:   "inline-block font-mono text-[12px] leading-none px-1.5 py-1 bg-crust border border-chord/40 rounded text-chord font-semibold text-center min-w-[18px] shadow-inner",
+    kbdPrefix:  "inline-block font-mono text-[11px] leading-none px-1.5 py-1 bg-crust border border-prefix/40 rounded text-prefix text-center min-w-[18px]",
+    sep:        "text-overlay0 mx-0.5",
+    sepSlash:   "text-surface2 mx-1.5",
+
+    // TOC chip
+    tocLink:    "inline-flex items-center gap-1.5 font-mono text-[11px] px-2 py-1 rounded-md bg-surface0 border border-surface1 text-subtext1 no-underline hover:bg-surface1 hover:border-surface2",
+    tocPlus:    "text-prefix font-semibold",
+    tocLbl:     "text-overlay1",
+
+    // single-chord row
+    singleRow:  "imk-row grid grid-cols-[1fr_2fr] items-baseline gap-2 py-0.5 text-[12.5px] font-mono",
+    singleKeys: "text-right",
+    singleArr:  "text-arrow",
+    singleAct:  "text-subtext1 font-sans",
+  };
+
+  // ── Data ───────────────────────────────────────────────────────────────────
+  const STD_EDITOR = [
+    ["Mod+A","Select All"],["Mod+C","Copy"],["Mod+F","Find"],["Mod+S","Save"],
+    ["Mod+V","Paste"],["Mod+X","Cut"],["Mod+Z","Undo"],
+    ["Mod+Y / Mod+⇧Z","Redo"],
+  ];
+  const STD_MAC = [
+    ["H","Hide Front Application"],["M","Minimize"],["Q","Quit"],[",","Preferences"],
+  ];
+  const STD_SEQ = [
+    ["F1","Back"],["⇧F1","Forward"],
+    ["F2","Last Edit Location"],["⇧F2","Next Edit Location"],
+    ["Mod+F2","Next Method"],["Mod+F1","Previous Method"],
+    ["F3","Find Next"],["⇧F3","Find Previous"],
+    ["F4","Next Occurrence of Word at Caret"],["⇧F4","Previous Occurrence of Word at Caret"],
+    ["Mod+F4","Next Highlighted Error"],["Mod+F3","Previous Highlighted Error"],
+    ["F5","Next Change / Diff"],["⇧F5","Previous Change / Diff"],
+    ["F6","Next Emmet Edit Point"],["⇧F6","Previous Emmet Edit Point"],
+    ["Mod+F7","Caret → Code Block Start"],["Mod+F8","Caret → Code Block End"],
+    ["⇧F7","Block Start w/ Selection"],["⇧F8","Block End w/ Selection"],
+    ["Mod+⇧F7","Go to Containing Declaration"],["Mod+⇧F8","Select Containing Declaration"],
+    ["Mod+F6","Add Selection for Next Occurrence"],["Mod+⇧F6","Unselect Occurrence"],
+    ["F7","Step Out"],["F8","Resume Program"],
+    ["F9","Step Over"],["⇧F9","Force Step Over"],
+    ["F10","Step Into"],["⇧F10","Force Step Into"],
+    ["Mod+⇧F10","Smart Step Into"],
+    ["F12","Extend Selection"],["⇧F12","Shrink Selection"],
+    ["Alt+⇧↓ / ⌃⇧↓","Move Statement Down"],
+    ["Alt+⇧↑ / ⌃⇧↑","Move Statement Up"],
+    ["Alt+⇧← / ⌃⇧←","Move Element Left"],
+    ["Alt+⇧→ / ⌃⇧→","Move Statement Right"],
+    ["Alt+↓","Move Line Down"],["Alt+↑","Move Line Up"],
+    ["Alt+← / ⌘⌥←","Select Previous Tab"],["Alt+→ / ⌘⌥→","Select Next Tab"],
+    ["Mod+[digit]","Go to Bookmark X"],["Mod+⇧[digit]","Toggle Bookmark X"],
+    ["⌃Space","Basic Completion"],["⌃⌥Space","Second Basic Completion"],
+    ["⌃⇧Space","Type-Matching Completion"],
+    ["⌃Tab","Switcher / Basic Completion"],
+  ];
+
+  const DEFAULT_GROUPS = [
+    { key:"B", name:"block", tag:"manipulate code blocks", rows:[
+      ["0","","Code Quick List"],["A","as","Save as Template"],["B","buffer","Paste from History"],
+      ["C","comment","Comment/Uncomment with Block Comment"],["D","definitions","Generate Definitions"],
+      ["G","generate","Generate"],["I","implement","Implement Methods"],["O","override","Override Methods"],
+      ["P","paste","Paste as Plain Text"],["R","rearrange","Rearrange"],["S","surround","Surround With..."],
+      ["T","template","Insert Live Template"],["U","unwrap","Unwrap / Remove"],
+      ["W","wrap","Surround with Live Template"],["X","Xtract","Copy as Plain Text"],
+    ]},
+    { key:"D", name:"debug", tag:"running and debugging", rows:[
+      ["0","","Debugger Quick List"],["A","attach","Attach to Process"],
+      ["Mod+⇧A","attach","Reattach to Process (Rider)"],["B","breakpoints","View Breakpoints"],
+      ["C","cursor","Run to Cursor"],["D","debug","Debug Selected Configuration"],
+      ["E","evaluate","Evaluate Expression"],["F","find","Show Execution Point"],
+      ["I","immediate","Navigate to Immediate Window"],["J","jump","Jump to Statement"],
+      ["K","konfig","Edit Configurations"],["L","line","Toggle Line Breakpoint"],
+      ["N","new run","Rerun"],["O","over","Stop"],["P","pause","Pause Program"],
+      ["R","run","Run Selected Configuration"],["S","skip","Force Run to Cursor"],
+      ["T","temporary","Toggle Temporary Line Breakpoint"],["U","update","Update Running Application"],
+      ["V","value","Set Value"],["W","watch","Add to Watches"],
+      ["X","","Toggle Breakpoint Enabled"],["Y","","Quick Evaluate Expression"],
+      ["1","","Run... (select configuration)"],["2","","Debug... (select configuration)"],
+      ["3","","Run Context Configuration"],
+    ]},
+    { key:"E", name:"editor", tag:"editor actions", rows:[
+      ["1","","Stretch Split Tab Left"],["4","","Stretch Split Tab Right"],
+      ["2","","Stretch Split Tab Up"],["3","","Stretch Split Tab Down"],
+      ["5","","Split and Move Right"],["6","","Split and Move Down"],["0","","Code Quick List"],
+      ["A","all","Select All Occurrences"],["B","bold","Markdown: Bold"],["C","case","Toggle Case"],
+      ["D","documentation","Quick Documentation"],["E","ends","Add Carets to Ends of Selected Lines"],
+      ["F","format","Reformat Code"],["I","implementation","Quick Definition"],["I","italic","Markdown: Italic"],
+      ["J","juxtapose","Compare with Clipboard"],["K","kode","Markdown: Code"],["L","link","Markdown: Link"],
+      ["N","new","Open Current File in New Window"],["O","oppose","Compare With"],
+      ["P","parameter","Parameter Information"],["P","picture","Markdown: Insert Image"],
+      ["R","replace","Replace"],["S","scratch","New Scratch File"],["T","type","Quick Type Definition"],
+      ["T","through","Markdown: Strikethrough"],["U","usages","Highlight Usages in File"],
+      ["W","","Copy Path/Reference"],["X","","Close Tab"],["Y","tYpe","Type Info"],
+    ]},
+    { key:"G", name:"gather", tag:"code folding actions", rows:[
+      ["0","","Folding Quick List"],["A","all","Expand All"],["B","block","Fold Code Block"],
+      ["C","collapse","Collapse"],["D","definitions","Collapse to Definitions"],["E","expand","Expand"],
+      ["O","open","Expand Recursively"],["S","selection","Fold Selection / Remove Region"],
+      ["T","toggle","Toggle Folding (Rider)"],["X","","Collapse All"],
+    ]},
+    { key:"I", name:"inspect", tag:"code analysis", rows:[
+      ["0","","Analyze Quick List"],["A","analyze","Inspect Code"],["B","","Inspect This"],
+      ["C","calls","Call Hierarchy"],["E","error","Error Description"],["F","functions","Method Hierarchy"],
+      ["I","imports","Imports Hierarchy (C++)"],["L","incLudes","Includes Hierarchy (C++)"],
+      ["N","name","Run Inspection by Name"],["S","stacktrace","Analyze Stack Trace"],
+      ["T","types","Type Hierarchy"],
+    ]},
+    { key:"J", name:"jump", tag:"single-destination navigation", rows:[
+      ["0","","Select In"],["A","another","Move Caret to Matching Brace"],
+      ["B","breadcrumbs","Jump to Navigation Bar"],["C","class","Type Declaration"],
+      ["D","declaration","Go to Declaration"],["E","editor","Jump to Source"],["F","files","File Path"],
+      ["P","project","Locate in Project/Solution View"],["R","related","Switch Header/Source"],
+      ["S","switcher","Switcher"],["T","terminal","Open in Terminal"],
+      ["X","","Next Bookmark"],["Z","","Previous Bookmark"],
+    ]},
+    { key:"K", name:"kommit", tag:"VCS actions", rows:[
+      ["0","","VCS Operations"],["A","add","Add to VCS"],["B","branches","Branches"],["C","commit","Commit"],
+      ["D","diff","Show Diff"],["F","fetch","Fetch"],["G","group","Move to Another Changelist"],
+      ["I","hIstory","Show History"],["J","join","Merge"],["K","kommit","Commit and Push"],
+      ["L","puLL","Pull"],["N","new","New Branch"],["O","origins","Manage Remotes"],
+      ["P","push","Push"],["R","requests","Pull Requests"],["U","update","Update"],
+      ["V","visualize","Show Local Changes as UML"],["W","why","Annotate"],["Z","","Revert / Roll back"],
+    ]},
+    { key:"L", name:"line", tag:"manipulate code lines", rows:[
+      ["0","","Code Quick List"],["B","bookmark","Toggle Bookmark"],
+      ["C","comment","Comment with Line Comment"],["D","duplicate","Duplicate Line or Selection"],
+      ["F","flag","Toggle Bookmark with Mnemonic"],["G","go","Go to Line"],
+      ["I","indent","Auto-Indent Lines"],["J","join","Join Lines"],
+      ["N","numbers","Show Line Numbers"],["R","reverse","Reverse Lines"],
+      ["S","sort","Sort Lines"],["W","wrap","Soft-Wrap"],["X","","Delete Line"],
+    ]},
+    { key:"N", name:"navigate", tag:"multiple-destination navigation", rows:[
+      ["0","","Navigate Quick List"],["A","all","Go to Symbol"],["B","bookmarks","Show Bookmarks"],
+      ["C","class","Go to Class"],["D","declaration","Go to Declaration"],
+      ["E","edits","Recently Changed Files"],["F","find","Find in Files"],["G","go","Search Everywhere"],
+      ["I","implementation","Go to Implementations / Derived Symbols"],["J","jump","Structure / File Member"],
+      ["K","kode","Go to Implementation"],["L","list","Show Usages"],["N","navigate","Navigate To"],
+      ["O","open","Go to File"],["P","peers","Go to Related Symbol"],["R","recent","Recent Files"],
+      ["S","super","Go to Super Method / Base Symbols"],["T","text","Search Text"],
+      ["U","usages","Find Usages"],["V","visited","Recent Locations"],["W","watch","Add to Watches"],
+      ["X","xtended","Find Usages Settings"],["Z","","Recent Changes"],
+    ]},
+    { key:"O", name:"other", tag:"IDE/plugin-specific", rows:[
+      ["A","apply","Apply Code Changes / Hot Reload (Android Studio, Rider)"],
+      ["D","device","Select Device (Android Studio)"],
+      ["E","edit","Edit Property Value (Android Studio, i18n)"],
+      ["R","restart","Apply Changes and Restart (Android Studio)"],
+    ]},
+    { key:"P", name:"project", tag:"global project actions", rows:[
+      ["0","","Build Quick List"],["A","ant","Run Ant Target"],["B","build","Build Project / Solution"],
+      ["C","clean","Clean Project / Solution"],["F","file","Add New File"],
+      ["N","nuget","NuGet Quick List (Rider)"],["O","open","Open File or Project"],
+      ["R","rebuild","Rebuild Project / Solution"],["S","structure","Project Structure"],
+      ["T","test","C# Interactive (Rider)"],["U","update","Reload All from Disk"],
+      ["W","with me","Code With Me"],["X","","Cancel Build"],
+    ]},
+    { key:"R", name:"refactor", tag:"bulk transformations", rows:[
+      ["0","","Refactor This"],["A","all","Replace in Files"],["B","","Reformat File"],
+      ["C","cleanup","Reformat and Cleanup"],["D","duplicate","Copy"],["E","extract","Extract Method"],
+      ["F","field","Introduce Field"],["G","","Silent Reformat and Cleanup"],
+      ["I","interface","Extract Interface"],["J","jump","Jump to Statement"],
+      ["K","konstant","Introduce Constant"],["L","line","Inline"],["N","new run","Rerun"],
+      ["O","optimize","Optimize Imports"],["P","parameter","Introduce Parameter"],
+      ["R","rename","Rename"],["S","signature","Change Signature"],["T","type","Extract Class"],
+      ["U","uber","Extract Superclass"],["V","variable","Introduce Variable"],["W","","Move"],
+      ["X","","Safe Delete"],["Y","","Pull Members Up"],["Z","","Push Members Down"],
+    ]},
+    { key:"T", name:"test", tag:"testing actions", rows:[
+      ["0","","Unit Testing Quick List (Rider)"],["A","all","Run All Tests from Solution (Rider)"],
+      ["A","again","Rerun Tests"],["C","cover","Run with Coverage / Cover Unit Tests"],
+      ["D","debug","Debug Unit Tests (Rider)"],["F","failed","Rerun Failed Tests (Rider)"],
+      ["G","go","Go to Test"],["L","last","Repeat Previous Run (Rider)"],["L","latest","Recent Tests"],
+      ["N","new","Create New Session (Rider)"],["P","profile","Profile / Profile Unit Tests"],
+      ["R","run","Run Unit Tests (Rider)"],["S","session","Run Current Session (Rider)"],
+      ["S","show","Show Coverage Data"],["U","unit","Run under dotMemory Unit (Rider)"],
+      ["X","","Stop Execution (Rider)"],
+    ]},
+    { key:"U", name:"utilities", tag:"global helpers", rows:[
+      ["1","","Stretch Window Left"],["4","","Stretch Window Right"],
+      ["2","","Stretch Window Up"],["3","","Stretch Window Down"],
+      ["A","action","Find Action"],["B","browser","Open in Browser (Tasks)"],
+      ["C","changes","Local History"],["D","documentation","Context Help"],
+      ["G","guide","Help Topics"],["K","keep","Save Context (Tasks)"],
+      ["L","load","Load Context (Tasks)"],["N","new start","Restart IDE"],
+      ["O","open","Open Task (Tasks)"],["R","refresh","Refresh"],["S","settings","Settings"],
+      ["T","tasks","Switch Task (Tasks)"],["U","ui","Quick Switch Scheme"],
+      ["X","","Clear Context (Tasks)"],["Z","","Close Active Task (Tasks)"],
+    ]},
+    { key:"W", name:"window", tag:"manipulate tool windows", rows:[
+      ["0","","Tool Windows Quick List"],["1","","Toggle Presentation Mode"],
+      ["2","","Toggle Distraction Free Mode"],["3","","Toggle Full Screen Mode"],
+      ["4","","Toggle Zen Mode"],["5","","Hide Active Tool Window"],
+      ["6","","Hide All Tool Windows"],["7","","Jump to Last Tool Window"],
+      ["9","","Maximize Tool Window"],["A","ant","Ant Window"],["A","","Build Window (Rider)"],
+      ["B","bookmarks","Bookmarks Window"],["C","commit","Commit Window"],["D","debug","Debug Window"],
+      ["E","endpoints","Endpoints Window"],["F","find","Find Window"],["G","gradle","Gradle Window"],
+      ["G","get","NuGet Window (Rider)"],["I","il","IL Viewer Window (Rider)"],
+      ["I","inspect","Inspector Window (MPS)"],["J","","Problems Window"],["K","","Services Window"],
+      ["L","learn","Learn Window"],["N","notifications","Notifications Window"],["O","","Profiler Window"],
+      ["P","project","Project / Explorer Window"],["R","run","Run Window"],
+      ["S","structure","Structure Window"],["T","terminal","Terminal Window"],
+      ["U","unit","Unit Tests Window (Rider)"],["V","vcs","Version Control Window"],
+      ["X","","Database Window"],["Y","","TODO Window"],["Z","","Hierarchy Window"],
+    ]},
+  ];
+
+  let GROUPS = DEFAULT_GROUPS;
+
+  // ── IntelliJ keymap XML parser ─────────────────────────────────────────────
+  function parseKeymapXml(xmlText) {
+    let dom;
+    try { dom = new DOMParser().parseFromString(xmlText, "application/xml"); } catch { return []; }
+    if (!dom || dom.querySelector("parsererror")) return [];
+
+    const KEY_MAP = {
+      back_space:"Backspace", escape:"Esc", space:"Space", enter:"Enter", tab:"Tab",
+      back_slash:"\\", slash:"/", comma:",", period:".", semicolon:";",
+      equals:"=", minus:"-", plus:"+", add:"+", subtract:"-",
+      open_bracket:"[", close_bracket:"]", quote:"'", back_quote:"`",
+      page_up:"PgUp", page_down:"PgDn", home:"Home", end:"End",
+      delete:"Del", insert:"Ins", left:"←", right:"→", up:"↑", down:"↓",
+    };
+    function fmtKeystroke(ks) {
+      if (!ks) return "";
+      const tokens = ks.toLowerCase().split(/\s+/).filter(Boolean);
+      if (!tokens.length) return "";
+      const last = tokens.pop();
+      const mods = tokens.map(t => ({ ctrl:"Mod", meta:"Mod", shift:"⇧", alt:"⌥" }[t] || t));
+      let key;
+      if (KEY_MAP[last]) key = KEY_MAP[last];
+      else if (/^f\d{1,2}$/.test(last)) key = last.toUpperCase();
+      else key = last.toUpperCase();
+      return [...mods, key].join("+");
+    }
+    function beautify(id) {
+      return id.replace(/\$/g,"").replace(/\./g," ").replace(/_/g," ")
+        .replace(/([a-z])([A-Z])/g,"$1 $2").replace(/([A-Z])([A-Z][a-z])/g,"$1 $2")
+        .replace(/\s+/g," ").trim();
+    }
+
+    const FRIENDLY = {
+      SaveAsTemplate:"Save as Template", PasteMultiple:"Paste from History",
+      CommentByBlockComment:"Comment with Block Comment", GenerateDefinitions:"Generate Definitions",
+      Generate:"Generate", ImplementMethods:"Implement Methods", OverrideMethods:"Override Methods",
+      EditorPasteSimple:"Paste as Plain Text", Rearrange:"Rearrange", SurroundWith:"Surround With…",
+      InsertLiveTemplate:"Insert Live Template", Unwrap:"Unwrap / Remove",
+      SurroundWithLiveTemplate:"Surround with Live Template", EditorCopyAsPlainText:"Copy as Plain Text",
+      "XDebugger.AttachToProcess":"Attach to Process", ViewBreakpoints:"View Breakpoints",
+      RunToCursor:"Run to Cursor", Debug:"Debug Selected Configuration",
+      EvaluateExpression:"Evaluate Expression", ShowExecutionPoint:"Show Execution Point",
+      "Debugger.PopFrame":"Drop Frame", JumpToStatement:"Jump to Statement",
+      editRunConfigurations:"Edit Configurations", ToggleLineBreakpoint:"Toggle Line Breakpoint",
+      Rerun:"Rerun", Stop:"Stop", Pause:"Pause Program", Run:"Run Selected Configuration",
+      ForceRunToCursor:"Force Run to Cursor",
+      ToggleTemporaryLineBreakpoint:"Toggle Temporary Line Breakpoint",
+      "Debugger.ToggleBreakpointEnabled":"Toggle Breakpoint Enabled",
+      QuickEvaluateExpression:"Quick Evaluate Expression",
+      RunClass:"Run Context Configuration",
+      ChooseRunConfiguration:"Run… (select configuration)",
+      ChooseDebugConfiguration:"Debug… (select configuration)",
+      SelectAllOccurrences:"Select All Occurrences", EditorToggleCase:"Toggle Case",
+      QuickJavaDoc:"Quick Documentation",
+      EditorAddCaretToEndOfSelectedLines:"Add Carets to Ends of Selected Lines",
+      ReformatCode:"Reformat Code", QuickImplementations:"Quick Definition",
+      CompareClipboardWithSelection:"Compare with Clipboard",
+      "Markdown.Editing.ToggleBold.text":"Markdown: Bold",
+      "Markdown.Editing.ToggleItalic.text":"Markdown: Italic",
+      "Markdown.Editing.ToggleCode.text":"Markdown: Code",
+      "Markdown.Editing.InsertLink":"Markdown: Link",
+      "Markdown.Editing.ToggleStrikethrough.text":"Markdown: Strikethrough",
+      "Markdown.Editing.InsertImage":"Markdown: Insert Image",
+      OpenElementInNewWindow:"Open Current File in New Window",
+      CompareTwoFiles:"Compare With", ParameterInfo:"Parameter Information",
+      Replace:"Replace", NewScratchFile:"New Scratch File",
+      QuickTypeDefinition:"Quick Type Definition",
+      HighlightUsagesInFile:"Highlight Usages in File",
+      CopyReference:"Copy Path/Reference", CloseContent:"Close Tab",
+      ExpressionTypeInfo:"Type Info",
+      ExpandAllRegions:"Expand All", CollapseAllRegions:"Collapse All",
+      ExpandRegion:"Expand", CollapseRegion:"Collapse",
+      ExpandRegionRecursively:"Expand Recursively",
+      CollapseSelection:"Fold Selection / Remove Region",
+      CollapseBlock:"Fold Code Block", CollapseAllToDefinitions:"Collapse to Definitions",
+      InspectCode:"Inspect Code", CallHierarchy:"Call Hierarchy",
+      MethodHierarchy:"Method Hierarchy", TypeHierarchy:"Type Hierarchy",
+      RunInspection:"Run Inspection by Name", AnalyzeStacktraceOnError:"Analyze Stack Trace",
+      ShowErrorDescription:"Error Description",
+      EditorMatchBrace:"Move Caret to Matching Brace",
+      ShowNavBar:"Jump to Navigation Bar", GotoTypeDeclaration:"Type Declaration",
+      GotoDeclaration:"Go to Declaration", EditSource:"Jump to Source",
+      EditorCopyFilePath:"File Path", SelectInProjectView:"Locate in Project/Solution View",
+      Switcher:"Switcher", ActivateTerminalToolWindow:"Terminal Window",
+      "Terminal.OpenInTerminal":"Open in Terminal",
+      "ChangesView.AddUnversioned":"Add to VCS", "Git.Branches":"Branches",
+      CheckinProject:"Commit", "Compare.SameVersion":"Show Diff", "Git.Fetch":"Fetch",
+      "ChangesView.Move":"Move to Another Changelist",
+      Vcs_ShowHistoryForFile:"Show History", "Git.Merge":"Merge",
+      "Vcs.QuickListPopupAction":"VCS Operations",
+      "Git.Pull":"Pull", "Git.CreateNewBranch":"New Branch",
+      "Git.Remote":"Manage Remotes", Vcs_Push:"Push",
+      "Vcs.PullRequests":"Pull Requests", Vcs_UpdateProject:"Update",
+      Annotate:"Annotate", ChangesView_Revert:"Revert / Roll back",
+      ToggleBookmark:"Toggle Bookmark", CommentByLineComment:"Comment with Line Comment",
+      EditorDuplicate:"Duplicate Line or Selection",
+      ToggleBookmarkWithMnemonic:"Toggle Bookmark with Mnemonic",
+      GotoLine:"Go to Line", AutoIndentLines:"Auto-Indent Lines",
+      EditorJoinLines:"Join Lines", EditorToggleShowLineNumbers:"Show Line Numbers",
+      EditorReverseLines:"Reverse Lines", EditorSortLines:"Sort Lines",
+      EditorToggleUseSoftWraps:"Soft-Wrap", EditorDeleteLine:"Delete Line",
+      GotoSymbol:"Go to Symbol", ShowBookmarks:"Show Bookmarks",
+      GotoClass:"Go to Class", RecentChangedFiles:"Recently Changed Files",
+      FindInPath:"Find in Files", SearchEverywhere:"Search Everywhere",
+      GotoImplementation:"Go to Implementation",
+      FileStructurePopup:"Structure / File Member",
+      ShowUsages:"Show Usages", Navigate:"Navigate To",
+      GotoFile:"Go to File", GotoRelated:"Go to Related Symbol",
+      RecentFiles:"Recent Files", GotoSuperMethod:"Go to Super Method",
+      FindInText:"Search Text", FindUsages:"Find Usages",
+      RecentLocations:"Recent Locations",
+      Debugger_AddToWatch:"Add to Watches",
+      ShowSettingsAndFindUsages:"Find Usages Settings",
+      RecentChanges:"Recent Changes",
+      FindAction:"Find Action", OpenInBrowser:"Open in Browser",
+      LocalHistory_ShowHistory:"Local History",
+      QuickJavaDocInfo:"Context Help", HelpTopics:"Help Topics",
+      tasks_SaveContext:"Save Context", tasks_LoadContext:"Load Context",
+      RestartIde:"Restart IDE", tasks_OpenTask:"Open Task",
+      Refresh:"Refresh", ShowSettings:"Settings",
+      tasks_SwitchTask:"Switch Task", QuickChangeScheme:"Quick Switch Scheme",
+      tasks_ClearContext:"Clear Context", tasks_CloseTask:"Close Active Task",
+      RenameElement:"Rename", ChangeSignature:"Change Signature",
+      ExtractMethod:"Extract Method", IntroduceField:"Introduce Field",
+      IntroduceConstant:"Introduce Constant", Inline:"Inline",
+      OptimizeImports:"Optimize Imports", IntroduceParameter:"Introduce Parameter",
+      ExtractInterface:"Extract Interface",
+      "Refactorings.QuickListPopupAction":"Refactor This",
+      ExtractClass:"Extract Class", ExtractSuperclass:"Extract Superclass",
+      IntroduceVariable:"Introduce Variable", Move:"Move",
+      SafeDelete:"Safe Delete", MembersPullUp:"Pull Members Up",
+      MembersPushDown:"Push Members Down",
+      ReformatFile:"Reformat File", ReformatAndCleanup:"Reformat and Cleanup",
+      CopyElement:"Copy", RerunTests:"Rerun Tests",
+      "Coverage.Run":"Run with Coverage", GotoTest:"Go to Test",
+      RecentTests:"Recent Tests", "ProfilerActions.RunWithProfiler":"Profile",
+      "Coverage.ShowData":"Show Coverage Data",
+      BuildProject:"Build Project / Solution", CleanProject:"Clean Project / Solution",
+      NewFile:"Add New File", OpenFile:"Open File or Project",
+      RebuildProject:"Rebuild Project / Solution",
+      ShowProjectStructureSettings:"Project Structure",
+      Synchronize:"Reload All from Disk", "CodeWithMe.Start":"Code With Me",
+      CancelBuildAction:"Cancel Build", "Replace.In.Path":"Replace in Files",
+      ActivateProjectToolWindow:"Project / Explorer Window",
+      ActivateRunToolWindow:"Run Window", ActivateDebugToolWindow:"Debug Window",
+      ActivateTerminalToolWindow_Window:"Terminal Window",
+      ActivateStructureToolWindow:"Structure Window",
+      ActivateFindToolWindow:"Find Window",
+      ActivateBookmarksToolWindow:"Bookmarks Window",
+      ActivateVersionControlToolWindow:"Version Control Window",
+      ActivateCommitToolWindow:"Commit Window",
+      ActivateProblemsViewToolWindow:"Problems Window",
+      ActivateServicesToolWindow:"Services Window",
+      ActivateNotificationsToolWindow:"Notifications Window",
+      ActivateGradleToolWindow:"Gradle Window",
+      ActivateEndpointsToolWindow:"Endpoints Window",
+      TogglePresentationMode:"Toggle Presentation Mode",
+      ToggleDistractionFreeMode:"Toggle Distraction Free Mode",
+      ToggleFullScreen:"Toggle Full Screen Mode",
+      ToggleZenMode:"Toggle Zen Mode",
+      HideActiveWindow:"Hide Active Tool Window",
+      HideAllWindows:"Hide All Tool Windows",
+      JumpToLastWindow:"Jump to Last Tool Window",
+      MaximizeToolWindow:"Maximize Tool Window",
+    };
+
+    // groupKey → Map<actionId, { label, keys: Set<kDisplay> }>
+    // Grouping by action id lets us collect all keyboard-shortcut variants for
+    // the same action (e.g. second="1" AND second="ctrl 1") under one row,
+    // with the simplest variant as primary and the rest as alternates.
+    const buckets = new Map();
+    dom.querySelectorAll("action").forEach(act => {
+      const id = act.getAttribute("id") || "";
+      if (!id) return;
+      act.querySelectorAll("keyboard-shortcut").forEach(sc => {
+        const first  = (sc.getAttribute("first-keystroke")  || "").toLowerCase().trim();
+        const second = (sc.getAttribute("second-keystroke") || "").toLowerCase().trim();
+        if (!first || !second) return;
+        const m = first.match(/^(?:ctrl|meta)\s+([a-z0-9])$/);
+        if (!m) return;
+        const groupKey = m[1].toUpperCase();
+        const label = FRIENDLY[id] || beautify(id);
+        const kDisplay = fmtKeystroke(second);
+        if (!buckets.has(groupKey)) buckets.set(groupKey, new Map());
+        const idMap = buckets.get(groupKey);
+        if (!idMap.has(id)) idMap.set(id, { label, keys: new Set() });
+        idMap.get(id).keys.add(kDisplay);
+      });
+    });
+
+    const GROUP_NAMES = {
+      B:["block","manipulate code blocks"], D:["debug","running and debugging"],
+      E:["editor","editor actions"], G:["gather","code folding actions"],
+      I:["inspect","code analysis"], J:["jump","single-destination navigation"],
+      K:["kommit","VCS actions"], L:["line","manipulate code lines"],
+      N:["navigate","multiple-destination navigation"], O:["other","IDE/plugin-specific"],
+      P:["project","global project actions"], R:["refactor","bulk transformations"],
+      T:["test","testing actions"], U:["utilities","global helpers"],
+      W:["window","manipulate tool windows"],
+    };
+
+    function sortKey(s) {
+      const stripped = s.replace(/^(Mod|⇧|⌥)\+/g, "");
+      const ch = stripped.charAt(0);
+      if (/\d/.test(ch)) return "0" + s;
+      if (/[A-Z]/i.test(ch)) return "1" + s;
+      return "2" + s;
+    }
+    // Number of modifier tokens in a formatted chord (e.g. "Mod+⇧A" → 2).
+    function modCount(k) { return Math.max(0, k.split("+").length - 1); }
+
+    return [...buckets.keys()].sort().map(key => {
+      const idMap = buckets.get(key);
+      const rows = [];
+      for (const { label, keys } of idMap.values()) {
+        // Primary = the variant with fewest modifiers (ties → lexical).
+        const sorted = [...keys].sort((a, b) => {
+          const da = modCount(a), db = modCount(b);
+          if (da !== db) return da - db;
+          return a.localeCompare(b);
+        });
+        rows.push([sorted[0], "", label, sorted.slice(1)]);
+      }
+      rows.sort((a, b) => sortKey(a[0]).localeCompare(sortKey(b[0])));
+      const [name, tag] = GROUP_NAMES[key] || [`group ${key}`, ""];
+      return { key, name, tag, rows };
+    });
+  }
+
+  // ── Source loader ──────────────────────────────────────────────────────────
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const DEFAULT_URL = "https://raw.githubusercontent.com/dmimat/intellij-mnemonic-keymap/refs/heads/master/resources/keymaps/Mnemonic%20Keymap.xml";
+
+  function setStatus(text, kind) {
+    const el = $("#loader-status");
+    if (!el) return;
+    el.textContent = text || "";
+    el.dataset.kind = kind || "";
+    el.dataset.has = text ? "true" : "false";
+  }
+  function applyParsedGroups(groups, opts = {}) {
+    if (!Array.isArray(groups) || groups.length === 0) {
+      setStatus("No keymap groups found in the source.", "error");
+      return false;
+    }
+    GROUPS = groups;
+    buildToc();
+    buildGroups();
+    applyFilter();
+    setStatus(`Loaded ${groups.length} groups · ${groups.reduce((n,g)=>n+g.rows.length,0)} shortcuts${opts.fromCache ? " (cached)" : ""}.`, "ok");
+    return true;
+  }
+  async function loadFromUrl(url) {
+    if (!url) return;
+    setStatus("Fetching…");
+    let text = "";
+    try {
+      const res = await fetch(url, { redirect: "follow" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      text = await res.text();
+    } catch (e) {
+      setStatus("Fetch failed: " + (e?.message || e) + " — try Paste XML instead.", "error");
+      return;
+    }
+    if (!text) { setStatus("Empty response.", "error"); return; }
+    const groups = parseKeymapXml(text);
+    if (applyParsedGroups(groups)) {
+      try { localStorage.setItem("imk_source_url", url); localStorage.setItem("imk_source_xml", text); } catch {}
+    } else {
+      setStatus("Couldn't parse this document as an IntelliJ keymap XML.", "error");
+    }
+  }
+  function loadFromXml(text) {
+    const groups = parseKeymapXml(text || "");
+    if (applyParsedGroups(groups)) {
+      try { localStorage.setItem("imk_source_xml", text); localStorage.removeItem("imk_source_url"); } catch {}
+    } else {
+      setStatus("Couldn't parse XML. Expected <keymap>…</keymap> with <action><keyboard-shortcut/></action> entries.", "error");
+    }
+  }
+  function openPasteDialog() {
+    const backdrop = document.createElement("div");
+    backdrop.className = "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4";
+    backdrop.innerHTML = `
+      <div class="bg-surface0 border border-surface1 rounded-xl p-4 w-full max-w-2xl max-h-[82vh] flex flex-col gap-2.5 shadow-2xl">
+        <h3 class="m-0 text-sm font-semibold text-text">Paste IntelliJ keymap XML</h3>
+        <p class="m-0 text-xs text-overlay1">Paste a JetBrains keymap XML —
+          <code class="font-mono text-subtext1">&lt;keymap&gt;…&lt;/keymap&gt;</code>.</p>
+        <textarea spellcheck="false"
+          class="w-full flex-1 min-h-[280px] resize-y font-mono text-xs p-2 rounded-md
+                 bg-crust border border-surface1 text-text outline-none
+                 focus:border-accent focus:ring-1 focus:ring-accent/40"
+          placeholder="&lt;keymap version='1' name='…' parent='\$default'&gt;
+  &lt;action id='ActionId'&gt;
+    &lt;keyboard-shortcut first-keystroke='ctrl b' second-keystroke='a'/&gt;
+  &lt;/action&gt;
+&lt;/keymap&gt;"></textarea>
+        <div class="flex gap-2 justify-end">
+          <button data-act="cancel" type="button"
+            class="px-3 py-1.5 text-xs rounded-md bg-surface1 text-text hover:bg-surface2">Cancel</button>
+          <button data-act="apply" type="button"
+            class="px-3 py-1.5 text-xs rounded-md bg-accent text-base font-medium hover:bg-yellow">Apply</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    const ta = backdrop.querySelector("textarea");
+    ta.focus();
+    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+    backdrop.querySelector('[data-act="cancel"]').addEventListener("click", () => backdrop.remove());
+    backdrop.querySelector('[data-act="apply"]').addEventListener("click", () => {
+      loadFromXml(ta.value);
+      backdrop.remove();
+    });
+  }
+  function resetToDefault() {
+    GROUPS = DEFAULT_GROUPS;
+    buildToc();
+    buildGroups();
+    applyFilter();
+    try { localStorage.removeItem("imk_source_xml"); localStorage.removeItem("imk_source_url"); } catch {}
+    setStatus("Restored built-in default.", "ok");
+    $("#src-url").value = "";
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  let osMode = (localStorage.getItem("imk_os") || "win");
+  function modLabel() { return osMode === "mac" ? "⌘" : "Ctrl"; }
+
+  function renderKey(token) {
+    return token.split(" / ").map(part => {
+      // Normalize: glyph modifiers that appear concatenated (e.g. "⇧F3", "⌃Space")
+      // get a "+" inserted so they split cleanly into separate <kbd> elements.
+      const normalized = part
+        .replace(/⌘/g, "Mod+")
+        .replace(/⌃/g, "Ctrl+")
+        .replace(/⌥/g, "Alt+")
+        .replace(/⇧/g, "Shift+")
+        .replace(/\++/g, "+")
+        .replace(/^\+|\+$/g, "");
+
+      const parts = normalized.split("+").filter(Boolean).map(p => {
+        let t = p.trim();
+        if (t === "Mod") t = modLabel();
+        else if (osMode === "mac") {
+          // We're on macOS: convert text-form modifier names back into glyphs.
+          if (t === "Ctrl") t = "⌃";
+          else if (t === "Alt") t = "⌥";
+          else if (t === "Shift") t = "⇧";
+        }
+        // On Win/Linux we keep the text forms ("Ctrl", "Alt", "Shift") as-is.
+        return `<kbd class="${CLS.kbd}">${t}</kbd>`;
+      });
+      return parts.join(`<span class="${CLS.sep}">+</span>`);
+    }).join(`<span class="${CLS.sepSlash}">/</span>`);
+  }
+  function renderChordKey(secondChord) {
+    return `<kbd class="${CLS.kbdChord}">${secondChord}</kbd>`;
+  }
+  function renderPrefix(letter) {
+    return `<kbd class="${CLS.kbdPrefix}">${modLabel()}</kbd>`
+         + `<span class="${CLS.sep}">+</span>`
+         + `<kbd class="${CLS.kbdPrefix}">${letter}</kbd>`;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  function buildToc() {
+    const toc = $("#toc");
+    toc.innerHTML = "";
+    GROUPS.forEach(g => {
+      const a = document.createElement("a");
+      a.href = `#g-${g.key}`;
+      a.className = CLS.tocLink;
+      // which-key uses "+name" convention for groups
+      a.innerHTML = `<span class="${CLS.tocPlus}">+${g.name}</span><span class="${CLS.tocLbl}">${modLabel()}+${g.key}</span>`;
+      toc.appendChild(a);
+    });
+  }
+
+  function normalizeTokens(parts) {
+    const raw = parts.filter(Boolean).join(" ").toLowerCase();
+    const named = raw
+      .replace(/⌘/g," cmd ").replace(/⌃/g," ctrl ").replace(/⌥/g," alt ").replace(/⇧/g," shift ")
+      .replace(/↓/g," down ").replace(/↑/g," up ").replace(/←/g," left ").replace(/→/g," right ")
+      .replace(/[+\/,]/g," ").replace(/\s+/g," ").trim();
+    const compact = named.replace(/\s+/g,"");
+    return `${named} ${compact}`;
+  }
+
+  function buildGroups() {
+    const root = $("#groups");
+    root.innerHTML = "";
+    const modName = osMode === "mac" ? "cmd" : "ctrl";
+    GROUPS.forEach(g => {
+      const sec = document.createElement("section");
+      sec.className = CLS.groupCard;
+      sec.id = `g-${g.key}`;
+      sec.dataset.group = g.key;
+
+      const head = document.createElement("h2");
+      head.className = CLS.groupHead;
+      head.innerHTML = `
+        <span>${renderPrefix(g.key)}</span>
+        <span class="${CLS.groupPlus}">+${escapeHtml(g.name)}</span>
+        <span class="${CLS.groupTag}">${escapeHtml(g.tag || "")}</span>`;
+
+      const list = document.createElement("div");
+      list.className = CLS.rowList;
+
+      g.rows.forEach(([k, mn, action, alts]) => {
+        const altList = Array.isArray(alts) ? alts : [];
+        const row = document.createElement("div");
+        row.className = CLS.row;
+
+        // Build search blob — include both the primary chord and every alternate
+        // so capture-mode filtering hits the row regardless of which variant the
+        // user pressed (e.g. "W 0" and "W Ctrl+0" both match).
+        const chordPart = (kk) => {
+          const sc = kk.replace(/Mod/g, modName);
+          return `ctrl+${g.key.toLowerCase()} ${sc.toLowerCase()} cmd+${g.key.toLowerCase()} ${sc.toLowerCase()} ${g.key} ${sc}`;
+        };
+        row.dataset.search = normalizeTokens([
+          chordPart(k),
+          ...altList.map(chordPart),
+          k, ...altList, mn, action, g.name, g.tag,
+        ]);
+
+        const renderOneKey = (kk) => (kk.includes("+") || kk.includes("⇧") || kk.includes("⌘") || kk.includes("⌃") || kk.includes("Mod"))
+          ? renderKey(kk) : renderChordKey(kk);
+
+        const primaryHtml = renderOneKey(k);
+        const altsHtml = altList.length
+          ? `<span class="opacity-50 inline-flex items-baseline gap-1">${
+              altList.map((a, i) => {
+                const sep = i === 0 ? "" : `<span class="text-overlay0 px-0.5">,</span>`;
+                return `${sep}${renderOneKey(a)}`;
+              }).join("")
+            }</span>`
+          : "";
+
+        const m = action.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+        const actionMain = m ? escapeHtml(m[1]) : escapeHtml(action);
+        const actionNote = m ? `<span class="${CLS.rowNote}">(${escapeHtml(m[2])})</span>` : "";
+        const mnemonic   = mn ? `<span class="${CLS.rowMnem}">~ ${escapeHtml(mn)}</span>` : "";
+
+        row.innerHTML = `
+          <span class="${CLS.rowKey}">${primaryHtml}</span>
+          <span class="${CLS.rowArrow}">→</span>
+          <span class="${CLS.rowAction}">${actionMain}${actionNote}${mnemonic}</span>
+          <span class="${CLS.rowAlts}">${altsHtml}</span>`;
+        list.appendChild(row);
+      });
+
+      sec.appendChild(head);
+      sec.appendChild(list);
+      root.appendChild(sec);
+    });
+  }
+
+  function buildSingle() {
+    const renderRow = ([keys, label]) => {
+      const div = document.createElement("div");
+      div.className = CLS.singleRow;
+      const winForm = keys.replace(/⌘/g,"Ctrl").replace(/⌃/g,"Ctrl").replace(/⌥/g,"Alt").replace(/⇧/g,"Shift");
+      const macForm = keys.replace(/^Ctrl\b/g,"⌘").replace(/Alt/g,"⌥").replace(/Shift/g,"⇧");
+      div.dataset.search = normalizeTokens([keys, winForm, macForm, label]);
+      div.innerHTML = `
+        <span class="${CLS.singleKeys}">${renderKey(keys)}</span>
+        <span><span class="${CLS.singleArr}">→</span> <span class="${CLS.singleAct}">${escapeHtml(label)}</span></span>`;
+      return div;
+    };
+    const fill = (id, rows) => {
+      const el = $("#"+id);
+      el.innerHTML = "";
+      rows.forEach(r => el.appendChild(renderRow(r)));
+    };
+    fill("std-editor", STD_EDITOR);
+    $("#std-mac").innerHTML = "";
+    STD_MAC.forEach(([k,l]) => $("#std-mac").appendChild(renderRow([`⌘+${k}`, l])));
+    fill("std-seq", STD_SEQ);
+  }
+
+  function normalizeQuery(q) {
+    const s = q.toLowerCase()
+      .replace(/⌘/g," cmd ").replace(/⌃/g," ctrl ").replace(/⌥/g," alt ").replace(/⇧/g," shift ")
+      .replace(/↓/g," down ").replace(/↑/g," up ").replace(/←/g," left ").replace(/→/g," right ")
+      .replace(/[+\/,]/g," ").replace(/\s+/g," ").trim();
+    return s.length ? s.split(" ").filter(Boolean) : [];
+  }
+  function chordsToCanonical() {
+    return chords.map(c => [...c.mods, c.key].join(" ")).join(" ");
+  }
+
+  function applyFilter() {
+    let test;
+    if (captureMode && chords.length > 0) {
+      const needle = " " + chordsToCanonical() + " ";
+      test = (blob) => (" " + blob + " ").includes(needle);
+    } else {
+      const tokens = normalizeQuery($("#q").value);
+      test = tokens.length ? (blob) => tokens.every(t => blob.includes(t)) : () => true;
+    }
+    document.querySelectorAll("#groups > section").forEach(g => {
+      let any = false;
+      g.querySelectorAll("[data-search]").forEach(r => {
+        const ok = test(r.dataset.search);
+        r.classList.toggle("hidden", !ok);
+        if (ok) any = true;
+      });
+      g.classList.toggle("hidden", !any);
+    });
+    document.querySelectorAll(".imk-row").forEach(r => {
+      r.classList.toggle("hidden", !test(r.dataset.search));
+    });
+  }
+
+  function setOs(mode) {
+    osMode = mode;
+    localStorage.setItem("imk_os", mode);
+    document.querySelectorAll("#os-toggle button").forEach(b => {
+      b.dataset.active = b.dataset.os === mode ? "true" : "false";
+    });
+    buildToc();
+    buildGroups();
+    buildSingle();
+    applyFilter();
+  }
+
+  // ── Capture mode ──────────────────────────────────────────────────────────
+  let captureMode = false;
+  let chords = [];
+  const PLACEHOLDER_DEFAULT = "Filter — action, mnemonic, or shortcut (ctrl+k a, ⌘r, rename)…";
+  const PLACEHOLDER_CAPTURE = "Press a shortcut…  (Esc to exit · ⌫ to clear)";
+  const KEY_ALIASES = {
+    " ":"space","ArrowDown":"down","ArrowUp":"up","ArrowLeft":"left","ArrowRight":"right",
+    "Enter":"enter","Tab":"tab","Escape":"esc","Delete":"delete","Insert":"insert",
+    "Home":"home","End":"end","PageUp":"pageup","PageDown":"pagedown",
+  };
+  const MODIFIER_KEYS = new Set(["Control","Meta","Alt","Shift","CapsLock","Hyper","Super"]);
+
+  function chordsToDisplay() {
+    return chords.map(c => {
+      const mods = c.mods.map(m => {
+        if (osMode === "mac") {
+          if (m === "cmd" || m === "ctrl") return "⌘";
+          if (m === "alt") return "⌥";
+          if (m === "shift") return "⇧";
+        } else {
+          if (m === "cmd" || m === "ctrl") return "Ctrl";
+          if (m === "alt") return "Alt";
+          if (m === "shift") return "Shift";
+        }
+        return m;
+      });
+      const key = c.key.toUpperCase();
+      return [...mods, key].join(osMode === "mac" ? "" : "+");
+    }).join(" ");
+  }
+
+  function setCapture(on) {
+    captureMode = !!on;
+    chords = [];
+    const input = $("#q");
+    const btn = $("#capture-btn");
+    const glow = $("#hero-glow");
+    btn.setAttribute("aria-pressed", captureMode ? "true" : "false");
+    input.dataset.capturing = captureMode ? "true" : "false";
+    if (glow) glow.dataset.on = captureMode ? "true" : "false";
+    input.placeholder = captureMode ? PLACEHOLDER_CAPTURE : PLACEHOLDER_DEFAULT;
+    input.value = "";
+    input.readOnly = false;
+    if (captureMode) {
+      document.addEventListener("keydown", handleCaptureKeydown, true);
+      // Disable capture if the user interacts with anything other than the
+      // search input itself or the capture toggle — clicking Paste / Load /
+      // Reset / OS toggle / URL field should hand control back to that control.
+      document.addEventListener("pointerdown", handleOutsidePointer, true);
+      input.focus();
+    } else {
+      document.removeEventListener("keydown", handleCaptureKeydown, true);
+      document.removeEventListener("pointerdown", handleOutsidePointer, true);
+    }
+    applyFilter();
+  }
+
+  // Auto-disable capture when the user clicks outside the search input /
+  // capture button. We use pointerdown (capture phase) so the disable runs
+  // BEFORE the target's own click handler, then we let the click proceed
+  // normally (no preventDefault) so the clicked control still activates.
+  function handleOutsidePointer(e) {
+    if (!captureMode) return;
+    const t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest("#q") || t.closest("#capture-btn")) return;
+    setCapture(false);
+  }
+
+  function keyNameFromEvent(e) {
+    if (e.code && /^Key[A-Z]$/.test(e.code)) return e.code.slice(3).toLowerCase();
+    if (e.code && /^Digit\d$/.test(e.code)) return e.code.slice(5);
+    if (e.code && /^Numpad\d$/.test(e.code)) return e.code.slice(6);
+    if (e.code && /^F\d{1,2}$/.test(e.code)) return e.code.toLowerCase();
+    if (e.key  && /^F\d{1,2}$/.test(e.key))  return e.key.toLowerCase();
+    if (KEY_ALIASES[e.key]) return KEY_ALIASES[e.key];
+    return (e.key || "").toLowerCase();
+  }
+
+  function handleCaptureKeydown(e) {
+    if (!captureMode) return;
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setCapture(false); return; }
+    if (e.key === "Backspace") {
+      e.preventDefault(); e.stopPropagation();
+      chords.pop();
+      $("#q").value = chordsToDisplay();
+      applyFilter();
+      return;
+    }
+    if (MODIFIER_KEYS.has(e.key)) return;
+    e.preventDefault(); e.stopPropagation();
+    const mods = [];
+    if (e.metaKey || e.ctrlKey) mods.push(osMode === "mac" ? "cmd" : "ctrl");
+    if (e.altKey)   mods.push("alt");
+    if (e.shiftKey) mods.push("shift");
+    const key = keyNameFromEvent(e);
+    if (!key) return;
+    if (chords.length >= 2) chords = [{ mods, key }];
+    else                    chords.push({ mods, key });
+    $("#q").value = chordsToDisplay();
+    applyFilter();
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  function init() {
+    document.querySelectorAll("#os-toggle button").forEach(b => {
+      b.addEventListener("click", () => setOs(b.dataset.os));
+    });
+    const input = $("#q");
+    input.addEventListener("input", () => {
+      if (captureMode) return;
+      localStorage.setItem("imk_q", input.value);
+      applyFilter();
+    });
+    $("#capture-btn").addEventListener("click", (e) => { e.preventDefault(); setCapture(!captureMode); });
+
+    // Global "/" shortcut focuses the search box (like which-key / GitHub)
+    document.addEventListener("keydown", (e) => {
+      if (captureMode) return;
+      const target = e.target;
+      const inField = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      if (e.key === "/" && !inField && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+
+    $("#src-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const u = $("#src-url").value.trim();
+      if (!u) { setStatus("Enter a URL first.", "error"); return; }
+      loadFromUrl(u);
+    });
+    $("#btn-paste").addEventListener("click", openPasteDialog);
+    $("#btn-reset").addEventListener("click", () => {
+      resetToDefault();
+      $("#src-url").value = DEFAULT_URL;
+      loadFromUrl(DEFAULT_URL);
+    });
+
+    const savedQ = localStorage.getItem("imk_q");
+    if (savedQ) input.value = savedQ;
+
+    // Restore persisted source (if any) or auto-load the dmimat default keymap.
+    let restored = false;
+    try {
+      const savedUrl = localStorage.getItem("imk_source_url");
+      const savedXml = localStorage.getItem("imk_source_xml");
+      if (savedUrl) $("#src-url").value = savedUrl;
+      if (savedXml) {
+        const groups = parseKeymapXml(savedXml);
+        if (groups.length) {
+          applyParsedGroups(groups, { fromCache: true });
+          restored = true;
+        }
+      }
+    } catch {}
+
+    setOs(osMode);
+    applyFilter();
+
+    // First-visit experience: populate the URL bar and try to fetch the
+    // canonical dmimat Mnemonic Keymap so the UI never starts empty.
+    if (!restored) {
+      $("#src-url").value = DEFAULT_URL;
+      loadFromUrl(DEFAULT_URL);
+    }
+  }
+  init();
+})();
+</script>
+</body>
+</html>
