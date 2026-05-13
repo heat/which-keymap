@@ -91,6 +91,19 @@
   <div id="loader-status" data-kind=""
        class="hidden data-[has=true]:block max-w-7xl mx-auto px-4 sm:px-6 pb-2 text-[11px] font-mono
               text-overlay1 data-[kind=ok]:text-green data-[kind=error]:text-red break-words"></div>
+
+  <!-- Delta-keymap banner — appears when the loaded XML inherits from a parent ($default) -->
+  <div id="delta-banner" hidden
+       class="max-w-7xl mx-auto px-4 sm:px-6 pb-2">
+    <div class="flex items-start gap-2 rounded-md border border-yellow/30 bg-yellow/10 px-3 py-2 text-[11.5px] text-yellow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4 mt-0.5 flex-none">
+        <path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      </svg>
+      <p id="delta-banner-text" class="flex-1 leading-snug m-0"></p>
+      <button id="delta-banner-dismiss" type="button" aria-label="Dismiss"
+        class="flex-none -mt-0.5 px-1.5 py-0.5 text-yellow/80 hover:text-yellow leading-none text-base">×</button>
+    </div>
+  </div>
 </div>
 
 <!-- Hero search ─────────────────────────────────────────────────────────── -->
@@ -173,6 +186,20 @@
         <div id="std-seq" class="flex flex-col gap-0.5"></div>
       </div>
     </div>
+  </details>
+</section>
+
+<!-- Single-chord shortcuts parsed from the loaded keymap ──────────────────── -->
+<section id="single-from-keymap" class="max-w-6xl mx-auto px-4 sm:px-6 mb-6" hidden>
+  <details class="bg-surface0 border border-surface1 rounded-xl overflow-hidden">
+    <summary class="cursor-pointer list-none [&::-webkit-details-marker]:hidden
+                    px-4 py-3 flex items-center gap-2 text-xs font-mono select-none
+                    text-subtext0 hover:bg-surface0/50">
+      <span class="text-prefix">▸</span>
+      <span>Single-chord shortcuts (from keymap)</span>
+      <span id="single-kmap-tag" class="text-overlay0"></span>
+    </summary>
+    <div id="single-kmap-body" class="border-t border-surface1 p-3 grid grid-cols-1 xl:grid-cols-2 gap-3"></div>
   </details>
 </section>
 
@@ -418,6 +445,8 @@
   ];
 
   let GROUPS = DEFAULT_GROUPS;
+  let CURRENT_SINGLES = [];
+  let CURRENT_META = {};
 
   // ── IntelliJ keymap XML parser ─────────────────────────────────────────────
   function parseKeymapXml(xmlText) {
@@ -433,17 +462,32 @@
       page_up:"PgUp", page_down:"PgDn", home:"Home", end:"End",
       delete:"Del", insert:"Ins", left:"←", right:"→", up:"↑", down:"↓",
     };
+    function fmtBareKey(last) {
+      if (!last) return "";
+      if (KEY_MAP[last]) return KEY_MAP[last];
+      if (/^f\d{1,2}$/.test(last)) return last.toUpperCase();
+      return last.toUpperCase();
+    }
     function fmtKeystroke(ks) {
       if (!ks) return "";
       const tokens = ks.toLowerCase().split(/\s+/).filter(Boolean);
       if (!tokens.length) return "";
       const last = tokens.pop();
-      const mods = tokens.map(t => ({ ctrl:"Mod", meta:"Mod", shift:"⇧", alt:"⌥" }[t] || t));
-      let key;
-      if (KEY_MAP[last]) key = KEY_MAP[last];
-      else if (/^f\d{1,2}$/.test(last)) key = last.toUpperCase();
-      else key = last.toUpperCase();
-      return [...mods, key].join("+");
+      const mods = tokens.map(t => ({ ctrl:"Mod", control:"Mod", meta:"Mod", shift:"⇧", alt:"⌥" }[t] || t));
+      return [...mods, fmtBareKey(last)].join("+");
+    }
+    // Canonical modifier names, in the display order used everywhere else.
+    const MOD_CANON_NAME = { ctrl:"ctrl", control:"ctrl", meta:"ctrl", shift:"shift", alt:"alt" };
+    const MOD_DISPLAY_ORDER = ["ctrl", "alt", "shift"];
+    function parseFirstChord(first) {
+      const tokens = first.toLowerCase().split(/\s+/).filter(Boolean);
+      if (!tokens.length) return null;
+      const last = tokens.pop();
+      if (!last) return null;
+      const seen = new Set();
+      tokens.forEach(t => { const m = MOD_CANON_NAME[t]; if (m) seen.add(m); });
+      const mods = MOD_DISPLAY_ORDER.filter(m => seen.has(m));
+      return { mods, key: last };
     }
     function beautify(id) {
       return id.replace(/\$/g,"").replace(/\./g," ").replace(/_/g," ")
@@ -585,27 +629,46 @@
       MaximizeToolWindow:"Maximize Tool Window",
     };
 
-    // groupKey → Map<actionId, { label, keys: Set<kDisplay> }>
-    // Grouping by action id lets us collect all keyboard-shortcut variants for
-    // the same action (e.g. second="1" AND second="ctrl 1") under one row,
+    // Root metadata — surfaces delta-keymap status to the UI.
+    const rootEl = dom.querySelector("keymap");
+    const parentName = rootEl?.getAttribute("parent") || "";
+    const keymapName = rootEl?.getAttribute("name") || "";
+
+    // Two-chord buckets: groupKey → Map<actionId, { label, keys: Set<kDisplay> }>
+    // Single-chord buckets: modGroupKey → { mods, actions: Map<actionId, { label, keys: Set<bareKey> }> }
+    // Grouping by action id collects shortcut variants under one row,
     // with the simplest variant as primary and the rest as alternates.
     const buckets = new Map();
+    const singleBuckets = new Map();
     dom.querySelectorAll("action").forEach(act => {
       const id = act.getAttribute("id") || "";
       if (!id) return;
       act.querySelectorAll("keyboard-shortcut").forEach(sc => {
         const first  = (sc.getAttribute("first-keystroke")  || "").toLowerCase().trim();
         const second = (sc.getAttribute("second-keystroke") || "").toLowerCase().trim();
-        if (!first || !second) return;
-        const m = first.match(/^(?:ctrl|meta)\s+([a-z0-9])$/);
-        if (!m) return;
-        const groupKey = m[1].toUpperCase();
+        if (!first) return;
         const label = FRIENDLY[id] || beautify(id);
-        const kDisplay = fmtKeystroke(second);
-        if (!buckets.has(groupKey)) buckets.set(groupKey, new Map());
-        const idMap = buckets.get(groupKey);
-        if (!idMap.has(id)) idMap.set(id, { label, keys: new Set() });
-        idMap.get(id).keys.add(kDisplay);
+        if (second) {
+          const m = first.match(/^(?:ctrl|control|meta)\s+([a-z0-9])$/);
+          if (!m) return;
+          const groupKey = m[1].toUpperCase();
+          const kDisplay = fmtKeystroke(second);
+          if (!buckets.has(groupKey)) buckets.set(groupKey, new Map());
+          const idMap = buckets.get(groupKey);
+          if (!idMap.has(id)) idMap.set(id, { label, keys: new Set() });
+          idMap.get(id).keys.add(kDisplay);
+        } else {
+          const parsed = parseFirstChord(first);
+          if (!parsed) return;
+          const modGroupKey = parsed.mods.join("+") || "none";
+          const bareKey = fmtBareKey(parsed.key);
+          if (!singleBuckets.has(modGroupKey)) {
+            singleBuckets.set(modGroupKey, { mods: parsed.mods, actions: new Map() });
+          }
+          const group = singleBuckets.get(modGroupKey);
+          if (!group.actions.has(id)) group.actions.set(id, { label, keys: new Set() });
+          group.actions.get(id).keys.add(bareKey);
+        }
       });
     });
 
@@ -630,7 +693,7 @@
     // Number of modifier tokens in a formatted chord (e.g. "Mod+⇧A" → 2).
     function modCount(k) { return Math.max(0, k.split("+").length - 1); }
 
-    return [...buckets.keys()].sort().map(key => {
+    const groups = [...buckets.keys()].sort().map(key => {
       const idMap = buckets.get(key);
       const rows = [];
       for (const { label, keys } of idMap.values()) {
@@ -646,6 +709,21 @@
       const [name, tag] = GROUP_NAMES[key] || [`group ${key}`, ""];
       return { key, name, tag, rows };
     });
+
+    const singles = [...singleBuckets.entries()].map(([modGroupKey, { mods, actions }]) => {
+      const rows = [];
+      for (const { label, keys } of actions.values()) {
+        const sorted = [...keys].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+        rows.push([sorted[0], "", label, sorted.slice(1)]);
+      }
+      rows.sort((a, b) => sortKey(a[0]).localeCompare(sortKey(b[0])));
+      return { modGroupKey, mods, rows };
+    }).sort((a, b) => {
+      if (a.mods.length !== b.mods.length) return a.mods.length - b.mods.length;
+      return a.modGroupKey.localeCompare(b.modGroupKey);
+    });
+
+    return { groups, singles, meta: { isDelta: !!parentName, parentName, name: keymapName } };
   }
 
   // ── Source loader ──────────────────────────────────────────────────────────
@@ -659,16 +737,28 @@
     el.dataset.kind = kind || "";
     el.dataset.has = text ? "true" : "false";
   }
-  function applyParsedGroups(groups, opts = {}) {
-    if (!Array.isArray(groups) || groups.length === 0) {
-      setStatus("No keymap groups found in the source.", "error");
+  function applyParsed(parsed, opts = {}) {
+    const groups  = Array.isArray(parsed?.groups)  ? parsed.groups  : [];
+    const singles = Array.isArray(parsed?.singles) ? parsed.singles : [];
+    const meta    = parsed?.meta || {};
+    if (groups.length === 0 && singles.length === 0) {
+      setStatus("Keymap parsed but contained no shortcuts the cheat-sheet can display.", "error");
       return false;
     }
     GROUPS = groups;
+    CURRENT_SINGLES = singles;
+    CURRENT_META = meta;
     buildToc();
     buildGroups();
+    buildSinglesFromKeymap(singles);
+    renderDeltaBanner(meta);
     applyFilter();
-    setStatus(`Loaded ${groups.length} groups · ${groups.reduce((n,g)=>n+g.rows.length,0)} shortcuts${opts.fromCache ? " (cached)" : ""}.`, "ok");
+    const singleCount = singles.reduce((n,s)=>n+s.rows.length,0);
+    const groupCount  = groups.reduce((n,g)=>n+g.rows.length,0);
+    const parts = [`Loaded ${groups.length} groups`];
+    if (singles.length) parts.push(`${singleCount} single-chord overrides`);
+    parts.push(`${groupCount + singleCount} shortcuts`);
+    setStatus(parts.join(" · ") + (opts.fromCache ? " (cached)." : "."), "ok");
     return true;
   }
   async function loadFromUrl(url) {
@@ -684,16 +774,16 @@
       return;
     }
     if (!text) { setStatus("Empty response.", "error"); return; }
-    const groups = parseKeymapXml(text);
-    if (applyParsedGroups(groups)) {
+    const parsed = parseKeymapXml(text);
+    if (applyParsed(parsed)) {
       try { localStorage.setItem("imk_source_url", url); localStorage.setItem("imk_source_xml", text); } catch {}
     } else {
       setStatus("Couldn't parse this document as an IntelliJ keymap XML.", "error");
     }
   }
   function loadFromXml(text) {
-    const groups = parseKeymapXml(text || "");
-    if (applyParsedGroups(groups)) {
+    const parsed = parseKeymapXml(text || "");
+    if (applyParsed(parsed)) {
       try { localStorage.setItem("imk_source_xml", text); localStorage.removeItem("imk_source_url"); } catch {}
     } else {
       setStatus("Couldn't parse XML. Expected <keymap>…</keymap> with <action><keyboard-shortcut/></action> entries.", "error");
@@ -735,8 +825,12 @@
   }
   function resetToDefault() {
     GROUPS = DEFAULT_GROUPS;
+    CURRENT_SINGLES = [];
+    CURRENT_META = {};
     buildToc();
     buildGroups();
+    buildSinglesFromKeymap([]);
+    renderDeltaBanner({});
     applyFilter();
     try { localStorage.removeItem("imk_source_xml"); localStorage.removeItem("imk_source_url"); } catch {}
     setStatus("Restored built-in default.", "ok");
@@ -903,6 +997,122 @@
     fill("std-seq", STD_SEQ);
   }
 
+  function renderModSetKbds(mods) {
+    if (!mods || !mods.length) return `<kbd class="${CLS.kbdPrefix}">∅</kbd>`;
+    const labels = mods.map(m => {
+      if (m === "ctrl") return modLabel();
+      if (m === "alt")  return osMode === "mac" ? "⌥" : "Alt";
+      if (m === "shift") return osMode === "mac" ? "⇧" : "Shift";
+      return m;
+    });
+    return labels.map(l => `<kbd class="${CLS.kbdPrefix}">${escapeHtml(l)}</kbd>`).join(`<span class="${CLS.sep}">+</span>`);
+  }
+
+  function buildSinglesFromKeymap(singles) {
+    const section = $("#single-from-keymap");
+    const body    = $("#single-kmap-body");
+    const tag     = $("#single-kmap-tag");
+    if (!section || !body) return;
+    body.innerHTML = "";
+    if (!singles || !singles.length) {
+      section.hidden = true;
+      if (tag) tag.textContent = "";
+      return;
+    }
+    section.hidden = false;
+    // Expand by default only when single-chords are the sole content
+    // (e.g. XWin); otherwise the user can opt in to expand.
+    const details = section.querySelector("details");
+    if (details) details.open = (GROUPS.length === 0);
+    const total = singles.reduce((n, s) => n + s.rows.length, 0);
+    if (tag) tag.textContent = `— ${total} shortcut${total === 1 ? "" : "s"} · ${singles.length} modifier set${singles.length === 1 ? "" : "s"}`;
+
+    const renderOneKey = (kk) => (kk.includes("+") || kk.includes("⇧") || kk.includes("⌘") || kk.includes("⌃") || kk.includes("Mod"))
+      ? renderKey(kk) : renderChordKey(kk);
+
+    singles.forEach(g => {
+      const sec = document.createElement("section");
+      sec.className = CLS.groupCard;
+      sec.dataset.group = `single-${g.modGroupKey}`;
+
+      const head = document.createElement("h2");
+      head.className = CLS.groupHead;
+      const modPretty = g.mods.length
+        ? g.mods.map(m => m === "ctrl" ? "Ctrl" : m === "alt" ? "Alt" : "Shift").join("+")
+        : "(no modifier)";
+      const modSlug = g.mods.length ? g.mods.join("+") : "bare";
+      head.innerHTML = `
+        <span>${renderModSetKbds(g.mods)}</span>
+        <span class="${CLS.groupPlus}">+${escapeHtml(modSlug)}</span>
+        <span class="${CLS.groupTag}">${g.rows.length} shortcut${g.rows.length === 1 ? "" : "s"}</span>`;
+
+      const list = document.createElement("div");
+      list.className = CLS.rowList;
+
+      // Build a search blob covering both Win/Linux (ctrl) and macOS (cmd) canonical
+      // forms so capture-mode matches regardless of OS toggle. The trailing key is
+      // appended verbatim — normalizeTokens handles lowercasing and "+,/" stripping.
+      const chordBlob = (bareKey) => {
+        const lower = bareKey.toLowerCase();
+        const a = g.mods.join(" ");
+        const b = g.mods.map(m => m === "ctrl" ? "cmd" : m).join(" ");
+        return (a ? a + " " : "") + lower + (b && b !== a ? " " + b + " " + lower : "");
+      };
+
+      g.rows.forEach(([k, mn, action, alts]) => {
+        const altList = Array.isArray(alts) ? alts : [];
+        const row = document.createElement("div");
+        row.className = CLS.row;
+        row.dataset.search = normalizeTokens([
+          chordBlob(k),
+          ...altList.map(chordBlob),
+          k, ...altList, mn, action, modPretty, modSlug,
+        ]);
+
+        const primaryHtml = renderOneKey(k);
+        const altsHtml = altList.length
+          ? `<span class="opacity-50 inline-flex items-baseline gap-1">${
+              altList.map((a, i) => {
+                const sep = i === 0 ? "" : `<span class="text-overlay0 px-0.5">,</span>`;
+                return `${sep}${renderOneKey(a)}`;
+              }).join("")
+            }</span>`
+          : "";
+
+        const m = action.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+        const actionMain = m ? escapeHtml(m[1]) : escapeHtml(action);
+        const actionNote = m ? `<span class="${CLS.rowNote}">(${escapeHtml(m[2])})</span>` : "";
+        const mnemonic   = mn ? `<span class="${CLS.rowMnem}">~ ${escapeHtml(mn)}</span>` : "";
+
+        row.innerHTML = `
+          <span class="${CLS.rowKey}">${primaryHtml}</span>
+          <span class="${CLS.rowArrow}">→</span>
+          <span class="${CLS.rowAction}">${actionMain}${actionNote}${mnemonic}</span>
+          <span class="${CLS.rowAlts}">${altsHtml}</span>`;
+        list.appendChild(row);
+      });
+
+      sec.appendChild(head);
+      sec.appendChild(list);
+      body.appendChild(sec);
+    });
+  }
+
+  function renderDeltaBanner(meta) {
+    const banner = $("#delta-banner");
+    const text   = $("#delta-banner-text");
+    if (!banner || !text) return;
+    if (!meta || !meta.isDelta) {
+      banner.hidden = true;
+      text.textContent = "";
+      return;
+    }
+    const nm = meta.name || "(unnamed)";
+    const pp = meta.parentName || "$default";
+    text.textContent = `This keymap (${nm}) is a delta of ${pp} — only the shortcuts it overrides are shown. Inherited shortcuts from ${pp} are not loaded.`;
+    banner.hidden = false;
+  }
+
   function normalizeQuery(q) {
     const s = q.toLowerCase()
       .replace(/⌘/g," cmd ").replace(/⌃/g," ctrl ").replace(/⌥/g," alt ").replace(/⇧/g," shift ")
@@ -923,7 +1133,7 @@
       const tokens = normalizeQuery($("#q").value);
       test = tokens.length ? (blob) => tokens.every(t => blob.includes(t)) : () => true;
     }
-    document.querySelectorAll("#groups > section").forEach(g => {
+    document.querySelectorAll("#groups > section, #single-kmap-body > section").forEach(g => {
       let any = false;
       g.querySelectorAll("[data-search]").forEach(r => {
         const ok = test(r.dataset.search);
@@ -946,6 +1156,7 @@
     buildToc();
     buildGroups();
     buildSingle();
+    buildSinglesFromKeymap(CURRENT_SINGLES);
     applyFilter();
   }
 
@@ -1064,6 +1275,7 @@
       applyFilter();
     });
     $("#capture-btn").addEventListener("click", (e) => { e.preventDefault(); setCapture(!captureMode); });
+    $("#delta-banner-dismiss")?.addEventListener("click", () => { $("#delta-banner").hidden = true; });
 
     // Global "/" shortcut focuses the search box (like which-key / GitHub)
     document.addEventListener("keydown", (e) => {
@@ -1100,9 +1312,9 @@
       const savedXml = localStorage.getItem("imk_source_xml");
       if (savedUrl) $("#src-url").value = savedUrl;
       if (savedXml) {
-        const groups = parseKeymapXml(savedXml);
-        if (groups.length) {
-          applyParsedGroups(groups, { fromCache: true });
+        const parsed = parseKeymapXml(savedXml);
+        if ((parsed?.groups?.length || 0) + (parsed?.singles?.length || 0) > 0) {
+          applyParsed(parsed, { fromCache: true });
           restored = true;
         }
       }
